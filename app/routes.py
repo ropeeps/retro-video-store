@@ -8,139 +8,175 @@ import os
 customers_bp = Blueprint("customers_bp", __name__, url_prefix="/customers")
 videos_bp = Blueprint("videos_bp", __name__, url_prefix="/videos")
 
+#wave 1 
+@videos_bp.route("", methods=["POST", "GET"])
+def handle_videos():
+    # POST REQUEST
+    if request.method == "POST":
+        video_request_body = request.get_json()
+        
+        if "title" not in video_request_body:
+            return jsonify({"details": "Request body must include title."}), 400
+        elif "release_date" not in video_request_body:
+            return jsonify({"details": "Request body must include release_date."}), 400
+        elif "total_inventory" not in video_request_body:
+            return jsonify({"details": "Request body must include total_inventory."}), 400
+    
+        new_video = Video(
+            title = video_request_body["title"],
+            release_date = video_request_body["release_date"],
+            total_inventory = video_request_body["total_inventory"]
+        )
+        db.session.add(new_video)
+        db.session.commit()
+        new_video_response = new_video.get_video_dict()
+        return jsonify(new_video_response), 201   
+    # GET REQUEST
+    elif request.method == "GET":
+        video_title_query = request.args.get("title")
+        if video_title_query:
+            videos = Video.query.filter(Video.title.contains(video_title_query))
+        else:
+            videos = Video.query.all()
+        video_response = []
+        for video in videos:
+            video_response.append(video.get_video_dict())
+        
+        if video_response == []:
+            return jsonify(video_response), 200
+        return jsonify(video_response), 200
+ # GET, PUT, DELETE ONE VIDEO AT A TIME
+@videos_bp.route("/<video_id>", methods=["GET", "PUT", "DELETE"])
+def handle_one_video_at_a_time(video_id):
+    if not video_id.isnumeric():
+        return jsonify(None), 400
 
-#wave 1 customer routes
+    video = Video.query.get(video_id)
+
+    if video is None:
+        return jsonify({"message": f"Video {video_id} was not found"}), 404
+    if request.method == "GET":
+        return jsonify(video.get_video_dict()), 200
+    elif request.method == "PUT":
+        video_update_request_body = request.get_json()
+
+        if "title" not in video_update_request_body:
+            return jsonify(None), 400
+
+         
+        video.title = video_update_request_body["title"],
+        video.release_date = video_update_request_body["release_date"],
+        video.total_inventory = video_update_request_body["total_inventory"]
+
+        db.session.commit()
+
+        #updated_video_response = {video.get_video_dict()}
+        updated_video_response = video.get_video_dict()
+
+        return jsonify(updated_video_response), 200
+
+    elif request.method == "DELETE":
+        db.session.delete(video)
+        db.session.commit()
+        video_delete_response = video.get_video_dict()
+
+        print("********", video_delete_response), 200
+        return jsonify(video_delete_response), 200
+
+# CUSTOMER ROUTES
 @customers_bp.route("", methods=["GET", "POST"])
 def handle_customers():
-    if request.method == "GET":
-        customer_name_query = request.args.get("name")
-        customer_postal_query = request.args.get("postal_code")
-        customers = Customer.query.all()
-
-        customers_response = []
-        for customer in customers:
-            customers_response.append(customer.get_cust_dict())
-
-        if customers_response == []:
-            return jsonify(customers_response), 200
-
-    elif request.method == "POST":
+    # POST REQUEST
+    if request.method == "POST":
         cust_request_body = request.get_json()
-        if "name" not in cust_request_body or "postal_code" not in cust_request_body or "phone" not in cust_request_body:
-            return jsonify({"details": "Invalid data"}), 400
-
+        if "name" not in cust_request_body:
+            return jsonify({"details": "Request body must include name."}), 400
+        elif "postal_code" not in cust_request_body:
+            return jsonify({"details": "Request body must include postal_code."}), 400
+        elif "phone" not in cust_request_body:
+            return jsonify({"details": "Request body must include phone."}), 400
         new_customer = Customer(
             name = cust_request_body["name"],
             postal_code = cust_request_body["postal_code"],
             phone = cust_request_body["phone"]
         )
-
         db.session.add(new_customer)
         db.session.commit()
-
-        new_cust_response = {
-            "Request body must include postal_code.": new_customer.get_cust_dict()
-        }
-
+        new_cust_response = new_customer.get_cust_dict()
+        
         return jsonify(new_cust_response), 201
+    # GET REQUEST
+    elif request.method == "GET":
+        customer_name_query = request.args.get("name")
+        customer_postal_query = request.args.get("postal_code")
+        
+        if customer_name_query:
+            customers = Customer.query.filter(Customer.name.contains(customer_name_query))
+        elif customer_postal_query:
+            customers = Customer.query.filter(Customer.postal_code.contains(customer_postal_query))
+        else:
+            customers = Customer.query.all()
+        customers_response = []
+        for customer in customers:
+            customers_response.append(customer.get_cust_dict())
+        if customers_response == []:
+            return jsonify(customers_response), 200
 
-    
+        print("**************")
+        print(customers_response)
+        return jsonify(customers_response), 200
 
-
-
-
-
+ # GET, PUT, DELETE ONE CUSTOMER AT A TIME
 @customers_bp.route("/<customer_id>", methods=["GET", "PUT", "DELETE"])
 def handle_one_customer_at_a_time(customer_id):
-    pass
+    if not customer_id.isnumeric():
+        return jsonify(None), 400
 
+    customer = Customer.query.get(customer_id)
 
+    if customer is None:
+        return jsonify({"message": f"Customer {customer_id} was not found"}), 404
 
-
-
-
-#wave 1 video routes
-@videos_bp.route("", methods=["POST", "GET"])
-def handle_videos():
-<<<<<<< Updated upstream
-    pass
-
-
-
-
-
-
-@videos_bp.route("/<video_id>", methods=["GET", "PUT", "DELETE"])
-def handle_one_video_at_a_time(video_id):
-    pass
-=======
     if request.method == "GET":
-        # sort_title_query = request.args.get("sort_by_title")
-        # sort_id_query = request.args.get("sort_by_id")
-        # sort_release_date_query = request.args.get("sort_by_release_date")
-        # if sort_title_query == "desc":
-        #     video = Video.query.order_by(Video.title.desc())
-        # elif sort_title_query == "asc":
-        #     video = Video.query.order_by(Video.title.asc())
-        # if sort_id_query == "desc":
-        #     video = Video.query.order_by(Video.id.desc())
-        # elif sort_id_query == "asc":
-        #     video = Video.query.order_by(Video.id.asc())
-        # if sort_release_date_query == "asc":
-        #     video = Video.query.order_by(Video.release_date.asc())
-        # if sort_release_date_query == "desc":
-        #     video = Video.query.order_by(Video.release_date.desc())
-        # else:
-        video = Video.query.all()
-        if not video:
-            response_body = {
-                "message": f"Video {video.id} was not found"
-            }
-            return jsonify(response_body), 404
-        videos_response = []
-        for video in video: 
-            videos_response.append(video.get_video_dict)
-            return jsonify(videos_response), 200
-        if request.method == "POST":
-            request_body = request.get_json()
-            if "title" or "release_date" or "total_inventory" not in request_body:
-                return{
-                    "400": "Bad Request"
-                }, 400
-            response_body = {
-                "id": video.id
-            }
-        return jsonify("201: Created", response_body), 201
-    
+        return jsonify(customer.get_cust_dict()), 200
+        #return jsonify(customer.get_cust_dict()), 200 
 
-@videos_bp.route("/<video_id>", methods=["GET", "PUT", "DELETE"])
-def handle_one_video_at_a_time(video_id):
-    video = Video.query.get(video_id)
-    request_body = request.get_json()
-    if not video:
-            response_body = {
-                "message": f"Video {video_id} was not found"
-            }
-            return jsonify(response_body), 404
-    elif request.method == "GET":
-        if video not in video.get_video_dict: 
-            return jsonify("400 Bad Request"), 400
-        response_body = video.get_video_dict
-        return jsonify(response_body), 200
     elif request.method == "PUT":
-        if "title" or "release_date" or "total_inventory" not in request_body:
-            return jsonify("400 Bad Request"), 400 
-        video.title = request_body["title"]
-        video.release_date = request_body["release_date"]
-        video.total_inventory = request_body["total_inventory"]
+        put_request_body = request.get_json()
+        if "name" not in put_request_body:
+            return jsonify(None), 400
+
+        customer.name = put_request_body["name"]
+        customer.postal_code = put_request_body["postal_code"]
+        customer.phone = put_request_body["phone"]
+        customer.postal_code = put_request_body["postal_code"]
+
         db.session.commit()
-        response_body = {video.get_video_dict}
-        return jsonify(response_body), 200
+
+        updated_customer_response = {
+             "name": f"Updated ${customer.name}",
+             "phone": f"Updated ${customer.phone}",
+             "postal_code": f"Updated ${customer.postal_code}",
+             "name": customer.name,
+             "phone": customer.phone,
+             "postal_code": customer.postal_code
+         }
+
+        return jsonify(updated_customer_response),  200
+        #return jsonify(updated_customer_response), 200
+
     elif request.method == "DELETE":
-        db.session.delete(video)
+
+        db.session.delete(customer)
         db.session.commit()
-        response_body = {
-            "id": video.id
-        }
-        return jsonify(response_body), 200
->>>>>>> Stashed changes
+
+
+        if customer == []:
+            cust_invalid_delete_response = {"message": f"Customer {customer_id} was not found"}
+
+            return jsonify(cust_invalid_delete_response), 404
+        else:
+            cust_delete_response = customer.get_cust_dict()
+            return jsonify(cust_delete_response), 200
+
+#wave 2
