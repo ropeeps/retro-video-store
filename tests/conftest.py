@@ -35,7 +35,7 @@ def client(app):
     return app.test_client()
 
 @pytest.fixture
-def one_video(app):
+def one_video(app):  #clear SQL table values between every test run
     new_video = Video(
         title=VIDEO_TITLE, 
         release_date=VIDEO_RELEASE_DATE,

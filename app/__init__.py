@@ -12,6 +12,7 @@ def create_app(test_config=None):
     app = Flask(__name__)
     app.url_map.strict_slashes = False
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["SQLALCHEMY_ECHO"] = True
 
     if test_config is None:
         app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
@@ -37,5 +38,8 @@ def create_app(test_config=None):
 
     from .routes import videos_bp
     app.register_blueprint(videos_bp)
+
+    from .routes import rentals_bp
+    app.register_blueprint(rentals_bp)
 
     return app
