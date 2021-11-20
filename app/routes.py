@@ -260,11 +260,9 @@ def handle_video_check_ins():
     if video is None:
         return jsonify(None), 404
     
-    # confirmed_checked_out = Rental.query.filter(Rental.customer_id == customer.id, Rental.video_id == video.id, Rental.is_checked_in == False)
-    # if not video in confirmed_checked_out:
-    #     return jsonify({"message": "No outstanding rentals for customer 1 and video 1"}), 400
-    
-    rental_receipt = []
+    rental = Rental.query.filter(Rental.customer_id == rentals_request_body["customer_id"], Rental.video_id == rentals_request_body["video_id"], Rental.is_checked_in == False).first()
+    if rental is None:
+        return jsonify({"message": f"No oustanding rentals for customer {customer.id} and video {video.id}"}), 400
 
     updated_inventory = db.session.query(Video).filter(Video.id == video.id).update({"total_inventory": (video.total_inventory + 1)})
     db.session.query(Rental).filter(Rental.customer_id == customer.id, Rental.video_id == video.id).update({"is_checked_in": (True)})
