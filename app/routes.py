@@ -265,7 +265,7 @@ def handle_video_check_ins():
         return jsonify({"message": f"No oustanding rentals for customer {customer.id} and video {video.id}"}), 400
 
     updated_inventory = db.session.query(Video).filter(Video.id == video.id).update({"total_inventory": (video.total_inventory + 1)})
-    db.session.query(Rental).filter(Rental.customer_id == customer.id, Rental.video_id == video.id).update({"is_checked_in": (True)})
+    db.session.query(Rental).filter(Rental.customer_id == customer.id, Rental.video_id == video.id).update({"due_date": (None), "is_checked_in": (True)})
     db.session.commit()
 
     still_checked_out = Rental.query.filter(Rental.customer_id == customer.id, Rental.is_checked_in == False).count()
