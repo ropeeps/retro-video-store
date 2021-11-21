@@ -1,13 +1,12 @@
 from app import db
-from app.models.rental import Rental
 import datetime
 
 class Video(db.Model):
     #__tablename__ = "video" #this line would override the class name, if you wanted the table name to be plural since class names are usually 
     #singular 
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String)
-    release_date = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow())
+    release_date = db.Column(db.DateTime, nullable=False, default=datetime.datetime.today())
     total_inventory = db.Column(db.Integer)
     customers = db.relationship("Customer", secondary="rental")
 

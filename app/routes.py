@@ -1,4 +1,3 @@
-#from flask.helpers import make_response
 from app import db
 from flask import Blueprint, jsonify, request
 from app.models.customer import Customer
@@ -6,11 +5,13 @@ from app.models.video import Video
 from app.models.rental import Rental 
 from datetime import datetime, timedelta 
 
+
 customers_bp = Blueprint("customers_bp", __name__, url_prefix="/customers")
 videos_bp = Blueprint("videos_bp", __name__, url_prefix="/videos")
 rentals_bp = Blueprint("rentals_bp", __name__, url_prefix="/rentals")
 
-#wave 1 
+
+#VIDEO ROUTES
 @videos_bp.route("", methods=["POST", "GET"])
 def handle_videos():
     # POST REQUEST
@@ -84,6 +85,28 @@ def handle_one_video_at_a_time(video_id):
 
         print("********", video_delete_response), 200
         return jsonify(video_delete_response), 200
+    
+@videos_bp.route("/<video_id>/rentals", methods=["GET"])
+def customers_who_checked_out(video_id):
+    #return a list of customers who currently have the video checked out
+    if not video_id.isnumeric():
+        return jsonify(None), 400
+    video = Video.query.get(video_id)
+    if video is None:
+        return jsonify({"message": f"Video {video_id} was not found"}), 404
+    # Telling query to return both customer and rental
+    results = db.session.query(Customer, Rental).filter(Rental.video_id == video.id, Rental.is_checked_in == False).all()
+    customer_list = [
+        {
+            "due_date": rental.due_date,
+            "name": customer.name,
+            "phone": customer.phone,
+            "postal_code": customer.postal_code
+        } 
+        for customer, rental in results
+    ]
+    return jsonify(customer_list), 200
+
 
 # CUSTOMER ROUTES
 @customers_bp.route("", methods=["GET", "POST"])
@@ -181,8 +204,6 @@ def handle_one_customer_at_a_time(customer_id):
             cust_delete_response = customer.get_cust_dict()
             return jsonify(cust_delete_response), 200
 
-
-#wave 2
 @customers_bp.route("/<customer_id>/rentals", methods = ["GET"])
 def videos_checked_out(customer_id):
     if not customer_id.isnumeric():
@@ -194,7 +215,7 @@ def videos_checked_out(customer_id):
     if not customer:
         return jsonify({"message": f"Customer {customer_id} was not found"}), 404
 
-    current_customer_rentals = db.session.query(Rental).join(Customer.videos).filter(Customer.id == customer_id, Rental.is_checked_in == False)
+    current_customer_rentals = db.session.query(Rental).filter(Rental.customer_id == customer_id, Rental.is_checked_in == False)
     
     for rental in current_customer_rentals:
         video_list = [
@@ -207,6 +228,7 @@ def videos_checked_out(customer_id):
     return jsonify(video_list), 200
 
 
+#RENTAL ROUTES
 @rentals_bp.route("/check-out", methods=["POST"])
 def handle_rental_check_outs():
     rentals_request_body = request.get_json()
@@ -221,10 +243,13 @@ def handle_rental_check_outs():
     video = Video.query.get(rentals_request_body["video_id"])
     if video is None:
         return jsonify(None), 404
-
+    
     if video.total_inventory == 0:
         return jsonify({"message": "Could not perform checkout"}), 400
-    db.session.query(Video).filter(Video.id == video.id).update({"total_inventory": (video.total_inventory - 1)})
+    
+    amount_same_video_being_checked_out = db.session.query(Video).filter(Video.id == video.id)
+    for video in amount_same_video_being_checked_out:
+        db.session.query(Video).filter(Video.id == video.id).update({"total_inventory": (video.total_inventory - 1)})
 
     new_rental = Rental(
         customer_id=customer.id,
@@ -232,7 +257,7 @@ def handle_rental_check_outs():
         is_checked_in=False
     )
     db.session.add(new_rental)
-    db.session.commit()
+    db.session.commit() #commit after updating inventory to update total_inventory in the table
     videos_checked_out = Rental.query.filter(Rental.customer_id == customer.id, Rental.video_id == video.id, Rental.is_checked_in == False).count()
     
     rental_receipt = {
@@ -240,7 +265,7 @@ def handle_rental_check_outs():
         "video_id": new_rental.video_id,
         "due_date": new_rental.due_date,
         "videos_checked_out_count": videos_checked_out,
-        "available_inventory": new_rental.video.total_inventory
+        "available_inventory": video.total_inventory
         }
     return jsonify(rental_receipt), 200
 
@@ -262,45 +287,25 @@ def handle_video_check_ins():
     
     rental = Rental.query.filter(Rental.customer_id == rentals_request_body["customer_id"], Rental.video_id == rentals_request_body["video_id"], Rental.is_checked_in == False).first()
     if rental is None:
-        return jsonify({"message": f"No oustanding rentals for customer {customer.id} and video {video.id}"}), 400
+        return jsonify({"message": f"No outstanding rentals for customer {customer.id} and video {video.id}"}), 400
 
-    updated_inventory = db.session.query(Video).filter(Video.id == video.id).update({"total_inventory": (video.total_inventory + 1)})
-    db.session.query(Rental).filter(Rental.customer_id == customer.id, Rental.video_id == video.id).update({"due_date": (None), "is_checked_in": (True)})
+    amount_same_video_being_checked_in = db.session.query(Video).filter(Video.id == video.id)
+    for video in amount_same_video_being_checked_in:
+        db.session.query(Video).filter(Video.id == video.id).update({"total_inventory": (video.total_inventory + 1)})
+
+    db.session.query(Rental).filter(Rental.customer_id == customer.id, Rental.video_id == video.id).update({"due_date": (None), "is_checked_in": (True)}) 
+    #if not removed, due date will keep incrementing after rental is checked back in 
     db.session.commit()
 
     still_checked_out = Rental.query.filter(Rental.customer_id == customer.id, Rental.is_checked_in == False).count()
 
     rental_receipt = {
-            "customer_id": customer.id,
-            "video_id": video.id,
-            "videos_checked_out_count": still_checked_out,
-            "available_inventory": updated_inventory
-            }
+        "customer_id": customer.id,
+        "video_id": video.id,
+        "videos_checked_out_count": still_checked_out,
+        "available_inventory": video.total_inventory
+        }
     return jsonify(rental_receipt), 200
-
-
-@videos_bp.route("/<video_id>/rentals", methods=["GET"])
-def customers_who_checked_out(video_id):
-    #return a list of customers who currently have the video checked out
-    if not video_id.isnumeric():
-        return jsonify(None), 400
-    video = Video.query.get(video_id)
-    if video is None:
-        return jsonify({"message": f"Video {video_id} was not found"}), 404
-    # Telling query to return both customer and rental
-    results = db.session.query(Customer, Rental).filter(Rental.video_id == video.id, Rental.is_checked_in == False).all()
-    customer_list = [
-        {
-            "due_date": rental.due_date,
-            "name": customer.name,
-            "phone": customer.phone,
-            "postal_code": customer.postal_code
-        } 
-        for customer, rental in results
-    ]
-    
-    return jsonify(customer_list), 200
-
 
 
 # OPTIONAL ENHANCEMENT (Overdue Endpoint)
