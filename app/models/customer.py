@@ -2,7 +2,7 @@ from app import db
 import datetime
 
 class Customer(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True) #autoincrement is default for primary keys
     name = db.Column(db.String)
     postal_code = db.Column(db.String) 
     phone = db.Column(db.String)

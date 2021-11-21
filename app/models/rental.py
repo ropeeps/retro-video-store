@@ -3,7 +3,7 @@ from sqlalchemy.orm import backref
 import datetime
 
 class Rental(db.Model):
-    id = db.Column(db.Integer, primary_key = True)
+    id = db.Column(db.Integer, primary_key = True) #autoincrement is default for primary keys
     video_id = db.Column(db.Integer, db.ForeignKey('video.id'), nullable=False) 
     customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
     due_date = db.Column(db.DateTime, default=datetime.datetime.today() + datetime.timedelta(days=7))

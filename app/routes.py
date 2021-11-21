@@ -215,8 +215,11 @@ def videos_checked_out(customer_id):
     if not customer:
         return jsonify({"message": f"Customer {customer_id} was not found"}), 404
 
+    current_customer_rentals = db.session.query(Rental).join(Customer.videos).filter(Customer.id == customer_id, Rental.is_checked_in == False)
     current_customer_rentals = db.session.query(Rental).filter(Rental.customer_id == customer_id, Rental.is_checked_in == False)
     
+    #line 218 or 219 will pass the tests. Using the join query returns an error on Postman. 
+
     for rental in current_customer_rentals:
         video_list = [
         {
