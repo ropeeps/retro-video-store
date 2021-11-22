@@ -3,7 +3,9 @@ from flask import Blueprint, jsonify, request
 from app.models.customer import Customer
 from app.models.video import Video
 from app.models.rental import Rental 
-from datetime import datetime, timedelta 
+from datetime import datetime, timedelta
+
+from tests.test_wave_02 import VIDEO_TITLE 
 
 
 customers_bp = Blueprint("customers_bp", __name__, url_prefix="/customers")
@@ -215,19 +217,16 @@ def videos_checked_out(customer_id):
     if not customer:
         return jsonify({"message": f"Customer {customer_id} was not found"}), 404
 
-    current_customer_rentals = db.session.query(Rental).join(Customer.videos).filter(Customer.id == customer_id, Rental.is_checked_in == False)
-    current_customer_rentals = db.session.query(Rental).filter(Rental.customer_id == customer_id, Rental.is_checked_in == False)
-    
-    #line 218 or 219 will pass the tests. Using the join query returns an error on Postman. 
+    current_customer_rentals = db.session.query(Rental.is_checked_in, Rental.due_date, Customer.id, Video.release_date, Video.title).filter(Customer.id == customer.id, Rental.is_checked_in == False)
 
-    for rental in current_customer_rentals:
+    for item in current_customer_rentals:
         video_list = [
         {
-            "release_date": rental.video.release_date,
-            "title": rental.video.title,
-            "due_date": rental.due_date,
+            "release_date": item.release_date,
+            "title": item.title,
+            "due_date": item.due_date,
         }]
-        
+    
     return jsonify(video_list), 200
 
 
@@ -297,6 +296,7 @@ def handle_video_check_ins():
         db.session.query(Video).filter(Video.id == video.id).update({"total_inventory": (video.total_inventory + 1)})
 
     db.session.query(Rental).filter(Rental.customer_id == customer.id, Rental.video_id == video.id).update({"due_date": (None), "is_checked_in": (True)}) 
+    #Rental.query.filter(Rental.customer_id == customer.id, Rental.video_id == video.id).update({"due_date": (None), "is_checked_in": (True)}) 
     #if not removed, due date will keep incrementing after rental is checked back in 
     db.session.commit()
 
